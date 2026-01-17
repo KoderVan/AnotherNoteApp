@@ -1,13 +1,10 @@
 ﻿using NoteApp3.Abstractions;
+using NoteApp3.Exсeptions;
 using NoteApp3.Models;
-using NoteApp3.Services;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
-using System.Threading.Tasks;
 
 
 namespace NoteApp3.Services
@@ -35,41 +32,26 @@ namespace NoteApp3.Services
             }
         }
 
-        public string Login()
+        public User Login(string username)
         {
-            string username = Console.ReadLine().Trim();
-            if (string.IsNullOrEmpty(username))
-            {
-                Console.WriteLine("Вы не ввели логин!");
-                Login();
-            }
             foreach(User registeredUser in _users)
             {
                 if (registeredUser.Name == username)
                 {
-                    Console.WriteLine("Вы успешно вошли в систему!");
-                    return registeredUser.Name;
+                    User user = registeredUser;
+                    return user;
                 }
-            }
-            Console.WriteLine($"Пользователя с логином {username} не зарегистрировано");
-            return "";
+            }  
+            return null;
         }
 
-        public void Register()
+        public void Register(string username)
         {
-            string username = Console.ReadLine().Trim();
-            if (string.IsNullOrEmpty(username))
-            {
-                Console.WriteLine("Вы не ввели логин!");
-                return;
-            }
             foreach(User registeredUser in _users)
             {
                 if (registeredUser.Name == username)
                 {
-                    Console.WriteLine("Такой пользователь уже существует!");
-                    Console.WriteLine("Введите другое имя пользователя");
-                    Register();
+                    throw new InvalidUserException("Такой пользователь уже существует!");
                 }
             }
             User user = new User()
@@ -78,7 +60,7 @@ namespace NoteApp3.Services
             };
             _users.Add(user);
             SaveToFile();
-            Console.WriteLine($"Пользователь с именем {username} успешно создан");
+            
             
         }
 

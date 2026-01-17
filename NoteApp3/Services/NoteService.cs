@@ -1,15 +1,11 @@
 ﻿using NoteApp3.Abstractions;
 using NoteApp3.Models;
-using NoteApp3.Services;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
-using System.Dynamic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.IO;
-using System.Runtime.InteropServices;
+using NoteApp3.Exсeptions;
 
 namespace NoteApp3.Services
 {
@@ -41,14 +37,21 @@ namespace NoteApp3.Services
             };
             _notes.Add(note);
             SaveToFile();
+            
             return note;
         }
 
         public void DeleteNote(int NoteId, string CurrentUser)
         {
-            MessageIfEmptyList();
-            List<Note> FilteredNotes = _notes.Where(x => x.UserName == CurrentUser).ToList();
-            foreach (Note note in FilteredNotes)//Нужно ли удалять заметку из отфильтрованного списка?
+            
+            List<Note> filteredNotes = _notes.Where(x => x.UserName == CurrentUser).ToList();
+
+            if (filteredNotes.Count == 0)
+            {
+                throw new EmptyNoteListException("У вас пока нет ни одной заметки");
+            }
+
+            foreach (Note note in filteredNotes)
             {
                 if(note.Id == NoteId)
                 {
@@ -57,48 +60,48 @@ namespace NoteApp3.Services
                     return;
                 }
             }
-            Console.WriteLine($"Заметки с id {NoteId} нет!");
-            
+            throw new InvalidNoteIdExeption($"Заметки с Id {NoteId} нет");
         }
 
-        public List<Note> GetAllNotes(string CurrentUser) //Может лучше void?
+        public List<Note> GetAllNotes(string CurrentUser)
         {
-            int count = 1;
-            MessageIfEmptyList();
-            List<Note> FilteredNotes = _notes.Where(x=> x.UserName == CurrentUser).ToList();
-            Console.WriteLine("Ваши заметки:");
-            foreach(Note note in FilteredNotes)
+                        
+            List<Note> filteredNotes = _notes.Where(note => note.UserName == CurrentUser).ToList();
+            
+            return filteredNotes;
+        }
+
+        public void ToggleCompleteness(int NoteId, string CurrentUser)
+        {
+            List<Note> filteredNotes = _notes.Where(x => x.UserName == CurrentUser).ToList();
+
+            if (filteredNotes.Count == 0)
             {
-                Console.WriteLine($"Заметка {count}");
-                Console.WriteLine($"{note.Title}");
-                Console.WriteLine($"{note.Description}");
-                count++;
+                throw new EmptyNoteListException("У вас пока нет ни одной заметки");
             }
-            
-            return _notes;
-        }
 
-        public void ToggleCompleteness(int NoteId, string CurrentUser)//Надо сделать именно переключение. Подсмотреть у Андрея
-        {
-            MessageIfEmptyList();
-            List<Note> FilteredNotes = _notes.Where(x => x.UserName == CurrentUser).ToList();
-            foreach (Note note in FilteredNotes)
+            foreach (Note note in filteredNotes)
             {
                 if( note.Id == NoteId)
                 {
-                    note.IsCompleted = true;
+                    bool completed = note.IsCompleted ? false : true;
+                    note.IsCompleted = completed;
                     SaveToFile();
                     return;
                 }
             }
-            Console.WriteLine($"Заметки с id {NoteId} нет!");
+            throw new InvalidNoteIdExeption($"Заметки с Id {NoteId} нет");
         }
 
-        public Note UpdateNote(int NoteId, string NewTitle, string NewDescription, string CurrentUser)//Может тоже void?
+        public Note UpdateNote(int NoteId, string NewTitle, string NewDescription, string CurrentUser)
         {
-            MessageIfEmptyList();
-            List<Note> FilteredNotes = _notes.Where(x => x.UserName == CurrentUser).ToList();
-            foreach (Note note in FilteredNotes)
+               
+            List<Note> filteredNotes = _notes.Where(x => x.UserName == CurrentUser).ToList();
+            if (filteredNotes.Count == 0)
+            {
+                throw new EmptyNoteListException("У вас пока нет ни одной заметки");
+            }
+            foreach (Note note in filteredNotes)
             {
                 if( note.Id == NoteId)
                 {
@@ -107,9 +110,8 @@ namespace NoteApp3.Services
                     SaveToFile();
                     return note;
                 }
-                Console.WriteLine($"Заметки с id {NoteId} нет!");
             }
-            throw new NotImplementedException();
+            throw new InvalidNoteIdExeption($"Заметки с Id {NoteId} нет");
         }
         public void CreateFileIfNotExists()
         {
@@ -135,13 +137,6 @@ namespace NoteApp3.Services
             File.WriteAllText(_filepath, newFileContent);
 
         }
-        public void MessageIfEmptyList()
-        {
-            if (_notes.Count == 0)
-            {
-                Console.WriteLine("У вас пока нет заметок!");
-                return;
-            }
-        }
+        
     }
 }

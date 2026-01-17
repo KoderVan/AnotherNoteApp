@@ -1,11 +1,4 @@
-﻿using NoteApp3.Abstractions;
-using NoteApp3.Services;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using NoteApp3.Services;
 
 
 namespace NoteApp3

@@ -1,7 +1,9 @@
 ﻿using NoteApp3.Abstractions;
 using NoteApp3.Models;
+using NoteApp3.Exсeptions;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace NoteApp3.Services
 {
@@ -10,9 +12,9 @@ namespace NoteApp3.Services
         private readonly IUserService _userService;
         private readonly INoteService _noteService;
         private bool _online = true;
-        private string User = null;
+        private string _user = null;
 
-        public ControlService(IUserService userService, INoteService noteService)//Ещё раз уточнить, почему передаю интерфейсы
+        public ControlService(IUserService userService, INoteService noteService)
         {
             _userService = userService;
             _noteService = noteService;
@@ -30,10 +32,11 @@ namespace NoteApp3.Services
                 {"help", PrintAllowedCommands},
                 {"register", UIRegister},
                 {"login", UILogin},
-                {"viewnotes", UIGetAllNotes},
-                {"createnote", UICreateNote},
-                {"updatenote", UIUpdateNote},
-                {"deletenote", DeleteNote},
+                {"view notes", UIGetAllNotes},
+                {"create note", UICreateNote},
+                {"update note", UIUpdateNote},
+                {"delete note", UIDeleteNote},
+                {"complete task", UIToggleComplitness},
                 {"exit", UIExit},
             };
 
@@ -44,7 +47,14 @@ namespace NoteApp3.Services
                 string input = Console.ReadLine().Trim().ToLower();
                 if (commands.ContainsKey(input))
                 {
-                    commands[input]();
+                    try
+                    {
+                        commands[input]();
+                    }
+                    catch(Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                    }
                 }
                 else
                 {
@@ -53,54 +63,79 @@ namespace NoteApp3.Services
             }
         }
 
-        public void PrintAllowedCommands()
+        private void PrintAllowedCommands()
         {
             Console.WriteLine("Доступные команды:");
             Console.WriteLine("Зарегистрировать пользователя: Register");
             Console.WriteLine("Войти в систему: Login");
-            Console.WriteLine("Создать заметку: CreateNote");
-            Console.WriteLine("Посмотреть все свои заметки: ViewNotes");
-            Console.WriteLine("Изменить заметку: UpdateNote");
-            Console.WriteLine("Удалить заметку: DeleteNote");
+            Console.WriteLine("Создать заметку: Create Note");
+            Console.WriteLine("Посмотреть все свои заметки: View Notes");
+            Console.WriteLine("Изменить заметку: Update Note");
+            Console.WriteLine("Удалить заметку: Delete Note");
+            Console.WriteLine("Изменить статус заметки: Complete task");
             Console.WriteLine("Выйти из программы: Exit");
         }
 
-        public void CheckIfUserLoggedIn()
+        private bool CheckIfUserLoggedIn()
         {
-            if (User == null)
+            if (_user == null)
             {
-                Console.WriteLine("Вы не вошли в систему!");
-                return;
+                return false;
             }
+            return true;
         }
-        public void UIRegister()
+        private void UIRegister()
         {
             Console.WriteLine("Введите логин, который хотите зарегистрировать:");
-            _userService.Register();
+            string username = Console.ReadLine().Trim();
+            if (username == null) throw new EmptyInputException("Вы не ввели имя пользователя");
+            try
+            {
+                _userService.Register(username);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Не удалось зарегистрировать пользоветля");
+                return;
+            }
+            Console.WriteLine($"Пользователь с именем {username} успешно создан");
         }
-        public void UILogin()
+        private void UILogin()
         {
             Console.WriteLine("Введите свой логин:");
-            User = _userService.Login();
-
+            string username = Console.ReadLine().Trim();
+            if (string.IsNullOrEmpty(username)) throw new EmptyInputException("Строка ввода пустая");
+            User user  = _userService.Login(username);
+            if (user == null) throw new InvalidUserException($"Пользователя {username} не зарегистрировано");
+            Console.WriteLine("Вы успешно залогинились!");
+            _user = user.Name;
         }
-        public void UIGetAllNotes()
+        private void UIGetAllNotes()
         {
-            CheckIfUserLoggedIn();
+            if (!CheckIfUserLoggedIn()) throw new InvalidUserException("Вы не вошли в систему");
 
-            _noteService.GetAllNotes(User);
+            List<Note> notes = _noteService.GetAllNotes(_user);
+            Console.WriteLine("Ваши заметки:");
+            foreach (Note note in notes)
+            {
+                string completed = note.IsCompleted ? "V" : "X";
+                Console.WriteLine("-------------");
+                Console.WriteLine($"{completed} Заметка № {note.Id}");
+                Console.WriteLine($"{note.Title}");
+                Console.WriteLine($"{note.Description}");
+            }
             return;
         }
-        public void UICreateNote()
+        private void UICreateNote()
         {
-            CheckIfUserLoggedIn();// как выходить из следуещей функции?
+            if(!CheckIfUserLoggedIn()) throw new InvalidUserException("Вы не вошли в систему");
             Console.WriteLine("Введите заголовок заметки:");
             string Title = Console.ReadLine();
             Console.WriteLine("Введите описание заметки:");
             string Description = Console.ReadLine();
             try
             {
-                Note note = _noteService.CreateNote(Title, Description, User);
+                Note note = _noteService.CreateNote(Title, Description, _user);
                 Console.WriteLine($"Заметка с id {note.Id} создана!");
                 return;
             }
@@ -110,10 +145,10 @@ namespace NoteApp3.Services
                 return;
             }
         }
-        public void UIUpdateNote()
+        private void UIUpdateNote()
         {
             int NoteId;
-            CheckIfUserLoggedIn();
+            if (!CheckIfUserLoggedIn()) throw new InvalidUserException("Вы не вошли в систему");
             Console.WriteLine("Введите Id заметки для изменения:");
             try
             {
@@ -124,46 +159,51 @@ namespace NoteApp3.Services
                 Console.WriteLine("Введите число!");
                 return;
             }
-
+            List<Note> notes = _noteService.GetAllNotes(_user);
+            if (notes.Count == 0) throw new EmptyNoteListException("У вас пока нет ни одной заметки!");
+            if (!notes.Where(x => x.Id == NoteId).Any()) throw new InvalidNoteIdExeption("Заметки с таким id нет!");
             Console.WriteLine("Введите  новый заголовок заметки:");
             string NewTitle = Console.ReadLine();
             Console.WriteLine("Введите новое описание заметки:");
             string NewDescription = Console.ReadLine();
-            _noteService.UpdateNote(NoteId, NewTitle, NewDescription, User);
+            _noteService.UpdateNote(NoteId, NewTitle, NewDescription, _user);
         }
-        public void DeleteNote()
+        private void UIDeleteNote()
         {
             int NoteId;
-            CheckIfUserLoggedIn();
-            Console.WriteLine("Введите Id заметки для изменения:");
+            if (!CheckIfUserLoggedIn()) throw new InvalidUserException("Вы не вошли в систему");
+            Console.WriteLine("Введите Id заметки для удаления:");
             try
             {
                 NoteId = Convert.ToInt32(Console.ReadLine());
-                _noteService.DeleteNote(NoteId, User);
             }
             catch (Exception ex)
             {
                 Console.WriteLine("Введите число!");
                 return;
             }
+            List<Note> notes = _noteService.GetAllNotes(_user);
+            if (notes.Count == 0) throw new EmptyNoteListException("У вас пока нет ни одной заметки!");
+            if (!notes.Where(x => x.Id == NoteId).Any()) throw new InvalidNoteIdExeption("Заметки с таким id нет!");
+            _noteService.DeleteNote(NoteId, _user);
         }
-        public void UIToggleComplitness()
+        private void UIToggleComplitness()
         {
             int NoteId;
-            CheckIfUserLoggedIn();
+            if (!CheckIfUserLoggedIn()) throw new InvalidUserException("Вы не вошли в систему");
             Console.WriteLine("Введите Id заметки для изменения отметки выполнения:");
             try
             {
                 NoteId = Convert.ToInt32(Console.ReadLine());
-                _noteService.ToggleCompleteness(NoteId, User);
+                _noteService.ToggleCompleteness(NoteId, _user);
             }
-            catch (Exception ex)
+            catch (InvalidNoteIdExeption ex)
             {
-                Console.WriteLine("Введите число!");
+                Console.WriteLine(ex.Message);
                 return;
             }
         }
-        public void UIExit()
+        private void UIExit()
         {
             _online = false;
             Console.WriteLine("Программа завершила работу");

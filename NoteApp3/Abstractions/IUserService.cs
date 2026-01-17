@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NoteApp3.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,8 +9,8 @@ namespace NoteApp3.Abstractions
 {
     internal interface IUserService
     {
-        void Register();
-        string Login();
+        void Register(string username);
+        User Login(string username);
 
     }
 }

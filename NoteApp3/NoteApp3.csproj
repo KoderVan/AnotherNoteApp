@@ -76,6 +76,10 @@
     <Compile Include="Abstractions\IControlService.cs" />
     <Compile Include="Abstractions\INoteService.cs" />
     <Compile Include="Abstractions\IUserService.cs" />
+    <Compile Include="Exceptions\EmptyInputException.cs" />
+    <Compile Include="Exceptions\EmptyNoteListExeption.cs" />
+    <Compile Include="Exceptions\InvalidNoteIdExeption.cs" />
+    <Compile Include="Exceptions\InvalidUserException.cs" />
     <Compile Include="Models\Note.cs" />
     <Compile Include="Models\User.cs" />
     <Compile Include="Program.cs" />
